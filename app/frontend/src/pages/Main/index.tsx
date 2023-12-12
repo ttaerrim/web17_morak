@@ -31,7 +31,7 @@ export function MainPage() {
           <br />
           모락과 함께하세요
         </div>
-        <div className={styles.login}>
+        <div className={styles.login} data-cy="login-button">
           {!isLogin && (
             <Button
               type="button"
