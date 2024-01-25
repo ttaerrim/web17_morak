@@ -1,11 +1,8 @@
 #!/bin/sh
-# wait-for-it.sh
-
 set -e
 
-host=$(echo $1 | cut -d ':' -f 1)
-port=$(echo $1 | cut -d ':' -f 2)
-shift
+host=$(echo $DATABASE_URL | sed -e 's|^[^@]*@||' -e 's|:[^:]*$||')
+port=$(echo $DATABASE_URL | sed -e 's|^.*:||' -e 's|/.*$||')
 
 cmd="$@"
 

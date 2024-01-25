@@ -1,15 +1,22 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { MemberDto } from './dto/member.dto';
+import { MemberInformationDto } from './dto/member.dto';
+import { getSecret } from '@morak/vault';
 
 @Injectable()
 export class MemberService {
   constructor(private jwtService: JwtService) {}
 
-  async getUserData(encryptedToken: string): Promise<MemberDto> {
-    const decodedAccessToken = this.jwtService.verify(encryptedToken, { secret: process.env.JWT_ACCESS_SECRET });
-    const { providerId, email, nickname, profilePicture } = decodedAccessToken;
+  async getUserData(encryptedToken: string): Promise<MemberInformationDto> {
+    try {
+      const decodedAccessToken = this.jwtService.verify(encryptedToken, {
+        secret: getSecret(`JWT_ACCESS_SECRET`),
+      });
+      const { providerId, email, nickname, profilePicture } = decodedAccessToken;
 
-    return { providerId, email, nickname, profilePicture };
+      return { providerId, email, nickname, profilePicture };
+    } catch (error) {
+      throw new UnauthorizedException('Invalid Token');
+    }
   }
 }

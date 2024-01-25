@@ -1,40 +1,25 @@
-import { RouterProvider, createBrowserRouter, Outlet } from 'react-router-dom';
+import { RouterProvider } from 'react-router-dom';
 
-import { Header } from '@/components';
-import '@/styles/reset.css';
+import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
-const router = createBrowserRouter([
-  {
-    path: '/',
-    element: (
-      <>
-        <Header />
-        <Outlet />
-      </>
-    ),
-    children: [
-      {
-        path: 'mogaco',
-        element: <>모각코</>,
-      },
-      {
-        path: 'calendar',
-        element: <>캘린더</>,
-      },
-      {
-        path: 'map',
-        element: <>지도</>,
-      },
-      {
-        path: 'profile',
-        element: <>프로필</>,
-      },
-    ],
+import { useRouter } from '@/hooks';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
   },
-]);
+});
 
 function App() {
-  return <RouterProvider router={router} />;
+  const router = useRouter();
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
+  );
 }
 
 export default App;

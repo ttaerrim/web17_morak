@@ -5,8 +5,9 @@ export function setupSwagger(app: INestApplication): void {
   const config = new DocumentBuilder()
     .setTitle('Morak')
     .setDescription('Morak API description')
-    .setVersion('1.0')
+    .setVersion('1.0.0')
     .addTag('moraks')
+    .addCookieAuth('token')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

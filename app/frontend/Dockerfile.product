@@ -1,0 +1,43 @@
+FROM node:20.9.0-alpine AS base
+ 
+FROM base AS builder
+RUN apk add --no-cache libc6-compat
+RUN apk update
+# Set working directory
+WORKDIR /app
+RUN npm install --global turbo
+COPY . .
+RUN turbo prune --scope=frontend --docker
+ 
+# Add lockfile and package.json's of isolated subworkspace
+FROM base AS installer
+RUN apk add --no-cache libc6-compat
+RUN apk update
+WORKDIR /app
+
+ARG VITE_API_URL
+ARG VITE_SOCKET_URL
+ARG VITE_SOCKET_URL_PATH
+
+# .env.product 파일 생성
+RUN echo "VITE_API_URL=${VITE_API_URL}" >> .env.product
+RUN echo "VITE_SOCKET_URL=${VITE_SOCKET_URL}" >> .env.product
+RUN echo "VITE_SOCKET_URL_PATH=${VITE_SOCKET_URL_PATH}" >> .env.product
+ 
+# First install the dependencies (as they change less often)
+COPY .gitignore .gitignore
+COPY --from=builder /app/out/json/ .
+COPY --from=builder /app/out/package-lock.json ./package-lock.json
+RUN npm ci
+ 
+# Build the project
+COPY --from=builder /app/out/full/ .
+
+WORKDIR /app
+RUN npx turbo run build --filter=frontend...
+ 
+FROM scratch
+WORKDIR /app
+
+# 빌더 스테이지에서 필요한 파일만 복사
+COPY --from=installer /app/app/frontend/dist /app/dist

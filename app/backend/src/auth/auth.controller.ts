@@ -1,3 +1,4 @@
+import { Request, Response } from 'express';
 import {
   Body,
   Controller,
@@ -9,41 +10,41 @@ import {
   UseGuards,
   ValidationPipe,
 } from '@nestjs/common';
-import { AuthService } from './auth.service';
 import {
-  ApiBearerAuth,
   ApiBody,
+  ApiCookieAuth,
   ApiCreatedResponse,
   ApiOperation,
   ApiResponse,
   ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
+import { AuthService } from './auth.service';
 import { GoogleOauthGuard } from './guards/google-oauth.guard';
-import { Request, Response } from 'express';
-import { RtGuard } from './guards/rt.guard';
 import { LogoutDto } from './dto/user.dto';
-import { getSecret } from 'vault';
+import { getSecret } from '@morak/vault';
+
+const isProduction = getSecret('NODE_ENV') === 'production';
 
 @ApiTags('Oauth API')
-@ApiSecurity('google')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Get('/google/login')
   @UseGuards(GoogleOauthGuard)
+  @ApiSecurity('google')
   @ApiOperation({
     summary: 'Google 로그인 요청 API',
     description: 'Google OAuth API에 로그인 요청',
   })
-  @ApiBearerAuth()
   @ApiResponse({ status: 200, description: 'Successful operation' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async googleLogin(): Promise<void> {}
 
   @Get('/google/callback')
   @UseGuards(GoogleOauthGuard)
+  @ApiSecurity('google')
   @ApiOperation({
     summary: 'Google OAuth 콜백 처리',
     description: '로그인을 진행하여 Access, Refresh Token 발급',
@@ -73,29 +74,36 @@ export class AuthController {
       const { providerId, socialType, name, email, profilePicture } = user;
 
       const tokens = await this.authService.handleLogin({
-        provider_id: providerId,
+        providerId,
         email,
         nickname: name,
-        social_type: socialType,
+        socialType,
         profilePicture,
       });
 
       res.setHeader('Authorization', 'Bearer ' + [tokens.access_token, tokens.refresh_token]);
 
-      res.cookie('access_token', tokens.access_token, { httpOnly: false, maxAge: getSecret('MAX_AGE_ACCESS_TOKEN') });
+      res.cookie('access_token', tokens.access_token, {
+        httpOnly: true,
+        secure: isProduction ? true : false,
+        sameSite: 'lax',
+        maxAge: getSecret('MAX_AGE_ACCESS_TOKEN'),
+      });
       res.cookie('refresh_token', tokens.refresh_token, {
-        httpOnly: false,
+        httpOnly: true,
+        secure: isProduction ? true : false,
+        sameSite: 'lax',
         maxAge: getSecret('MAX_AGE_REFRESH_TOKEN'),
       });
 
-      res.redirect(getSecret(`AUTH_REDIRECT_URL`));
+      res.redirect(getSecret(`DOMAIN`));
     } catch (error) {
       throw new UnauthorizedException('Failed to handle Google login callback');
     }
   }
 
   @Post('/refresh')
-  @UseGuards(RtGuard)
+  @ApiCookieAuth()
   @ApiOperation({
     summary: 'Refresh Token을 이용하여 Access Token 재갱신',
     description: 'cookie에 있는 Refresh Token을 이용해서 새로운 Access Token을 반환',
@@ -120,14 +128,24 @@ export class AuthController {
 
       res.setHeader('Authorization', 'Bearer ' + newAccessToken);
       res.cookie('access_token', newAccessToken, {
-        httpOnly: false,
-        maxAge: Number(getSecret('MAX_AGE_ACCESS_TOKEN')),
+        httpOnly: true,
+        secure: isProduction ? true : false,
+        sameSite: 'lax',
+        maxAge: getSecret('MAX_AGE_ACCESS_TOKEN'),
       });
 
       res.json({ newAccessToken });
     } catch (err) {
-      res.clearCookie('access_token', { httpOnly: false });
-      res.clearCookie('refresh_token', { httpOnly: false });
+      res.clearCookie('access_token', {
+        httpOnly: true,
+        secure: isProduction ? true : false,
+        sameSite: 'lax',
+      });
+      res.clearCookie('refresh_token', {
+        httpOnly: true,
+        secure: isProduction ? true : false,
+        sameSite: 'lax',
+      });
       throw new UnauthorizedException('Failed to refresh token');
     }
   }
@@ -150,8 +168,16 @@ export class AuthController {
       const { providerId } = body;
       await this.authService.logout(providerId);
 
-      res.clearCookie('access_token', { httpOnly: false });
-      res.clearCookie('refresh_token', { httpOnly: false });
+      res.clearCookie('access_token', {
+        httpOnly: true,
+        secure: isProduction ? true : false,
+        sameSite: 'lax',
+      });
+      res.clearCookie('refresh_token', {
+        httpOnly: true,
+        secure: isProduction ? true : false,
+        sameSite: 'lax',
+      });
     } catch (error) {
       console.error('Logout error:', error);
       throw new UnauthorizedException('Failed to logout');

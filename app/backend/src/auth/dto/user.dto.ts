@@ -1,10 +1,11 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { RequestLoginUserDto, RequestLogoutUserDto } from '@morak/apitype/dto/request/auth';
 import { IsString, IsEmail, MaxLength, MinLength } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
-export class CreateUserDto {
+export class CreateUserDto implements RequestLoginUserDto {
   @ApiProperty()
   @IsString()
-  provider_id: string;
+  providerId: string;
 
   @ApiProperty()
   @IsEmail()
@@ -18,15 +19,15 @@ export class CreateUserDto {
 
   @ApiProperty()
   @IsString()
-  social_type: string;
+  socialType: string;
 
   @ApiProperty()
   @IsString()
   profilePicture: string;
 }
 
-export class LogoutDto {
+export class LogoutDto implements RequestLogoutUserDto {
   @ApiProperty()
   @IsString()
-  provider_id: string;
+  providerId: string;
 }
